@@ -566,6 +566,7 @@ enum NvmeAdminCommands {
     NVME_ADM_CMD_ASYNC_EV_REQ   = 0x0c,
     NVME_ADM_CMD_ACTIVATE_FW    = 0x10,
     NVME_ADM_CMD_DOWNLOAD_FW    = 0x11,
+    NVME_ADM_CMD_DB_BUFFER_CFG  = 0x7c,
     NVME_ADM_CMD_FORMAT_NVM     = 0x80,
     NVME_ADM_CMD_SECURITY_SEND  = 0x81,
     NVME_ADM_CMD_SECURITY_RECV  = 0x82,
@@ -759,6 +760,18 @@ typedef struct QEMU_PACKED NvmeCqe {
     uint16_t    cid;
     uint16_t    status;
 } NvmeCqe;
+
+typedef struct NvmeStatus {
+    uint16_t p:1;     /* phase tag */
+    uint16_t sc:8;    /* status code */
+    uint16_t sct:3;   /* status code type */
+    uint16_t rsvd2:2;
+    uint16_t m:1;     /* more */
+    uint16_t dnr:1;   /* do not retry */
+} NvmeStatus;
+
+#define nvme_cpl_is_error(status) \
+        (((status & 0x01fe) != 0) || ((status & 0x0e00) != 0))
 
 enum NvmeStatusCodes {
     NVME_SUCCESS                = 0x0000,
@@ -1012,6 +1025,7 @@ enum NvmeIdCtrlOacs {
     NVME_OACS_SECURITY  = 1 << 0,
     NVME_OACS_FORMAT    = 1 << 1,
     NVME_OACS_FW        = 1 << 2,
+    NVME_OACS_DB_BUF    = 1 << 8,
 };
 
 enum NvmeIdCtrlOncs {

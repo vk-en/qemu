@@ -3,6 +3,8 @@
 
 #include "block/nvme.h"
 #include "nvme-ns.h"
+#include "hw/virtio/vhost.h"
+#include "chardev/char-fe.h"
 
 #define NVME_MAX_NAMESPACES 256
 
@@ -98,8 +100,10 @@ typedef struct NvmeCQueue {
     uint32_t    head;
     uint32_t    tail;
     uint32_t    vector;
+    uint32_t    virq;
     uint32_t    size;
     uint64_t    dma_addr;
+    EventNotifier guest_notifier;
     QEMUTimer   *timer;
     QTAILQ_HEAD(, NvmeSQueue) sq_list;
     QTAILQ_HEAD(, NvmeRequest) req_list;
@@ -115,6 +119,9 @@ typedef struct NvmeBus {
 #define TYPE_NVME "nvme"
 #define NVME(obj) \
         OBJECT_CHECK(NvmeCtrl, (obj), TYPE_NVME)
+#define TYPE_VHOST_NVME "vhost-user-nvme"
+#define NVME_VHOST(obj) \
+        OBJECT_CHECK(NvmeCtrl, (obj), TYPE_VHOST_NVME)
 
 typedef struct NvmeFeatureVal {
     struct {
@@ -132,6 +139,12 @@ typedef struct NvmeCtrl {
     NvmeParams   params;
     NvmeBus      bus;
     BlockConf    conf;
+
+    uint32_t    bootindex;
+    CharBackend chardev;
+    struct vhost_dev dev;
+    uint32_t    num_io_queues;
+    bool        dataplane_started;
 
     bool        qs_created;
     uint32_t    page_size;
