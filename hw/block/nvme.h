@@ -11,6 +11,7 @@
 
 typedef struct NvmeParams {
     char     *serial;
+    char     *vhostfd;
     uint32_t num_queues; /* deprecated since 5.1 */
     uint32_t max_ioqpairs;
     uint16_t msix_qsize;
@@ -127,6 +128,8 @@ typedef struct NvmeCQueue {
     uint32_t    vector;
     uint32_t    size;
     uint64_t    dma_addr;
+    int32_t     virq;
+    EventNotifier guest_notifier;
     QEMUTimer   *timer;
     QTAILQ_HEAD(, NvmeSQueue) sq_list;
     QTAILQ_HEAD(, NvmeRequest) req_list;
@@ -142,6 +145,10 @@ typedef struct NvmeBus {
 #define TYPE_NVME "nvme"
 #define NVME(obj) \
         OBJECT_CHECK(NvmeCtrl, (obj), TYPE_NVME)
+
+#define TYPE_VHOST_NVME "vhost-kernel-nvme"
+#define NVME_VHOST(obj) \
+        OBJECT_CHECK(NvmeCtrl, (obj), TYPE_VHOST_NVME)
 
 typedef struct NvmeFeatureVal {
     struct {
@@ -160,6 +167,12 @@ typedef struct NvmeCtrl {
     NvmeBus      bus;
 
     uint16_t    cntlid;
+    int32_t      bootindex;
+    struct vhost_dev dev;
+    uint32_t     num_io_queues;
+    bool         dataplane_started;
+    bool         vector_poll_started;
+
     bool        qs_created;
     uint32_t    page_size;
     uint16_t    page_bits;

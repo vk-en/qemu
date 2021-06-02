@@ -51,6 +51,7 @@ GlobalProperty hw_compat_5_1[] = {
     { "virtio-blk-device", "num-queues", "1"},
     { "virtio-scsi-device", "num_queues", "1"},
     { "nvme", "use-intel-id", "on"},
+    { "vhost-kernel-nvme", "use-intel-id", "on"},
     { "pvpanic", "events", "1"}, /* PVPANIC_PANICKED */
     { "pl011", "migrate-clk", "off" },
     { "virtio-pci", "x-ats-page-aligned", "off"},

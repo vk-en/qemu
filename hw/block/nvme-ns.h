@@ -14,6 +14,7 @@
 
 #ifndef NVME_NS_H
 #define NVME_NS_H
+#include "qemu/uuid.h"
 
 #include "qemu/uuid.h"
 
