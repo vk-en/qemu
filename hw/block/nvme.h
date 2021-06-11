@@ -5,10 +5,45 @@
 #include "hw/pci/pci.h"
 #include "nvme-subsys.h"
 #include "nvme-ns.h"
+#include "hw/virtio/vhost.h"
+#include "sysemu/hostmem.h"
+#include "chardev/char-fe.h"
+#include "hw/pci/pci.h"
 
 #define NVME_DEFAULT_ZONE_SIZE   (128 * MiB)
 #define NVME_DEFAULT_MAX_ZA_SIZE (128 * KiB)
+#define VHOST_NVME_BAR_READ 0
+#define VHOST_NVME_BAR_WRITE 1
 
+#define NVME_GUEST_ERR(trace, fmt, ...) \
+    do { \
+        (trace_##trace)(__VA_ARGS__); \
+        qemu_log_mask(LOG_GUEST_ERROR, #trace \
+            " in %s: " fmt "\n", __func__, ## __VA_ARGS__); \
+    } while (0)
+
+
+static const bool nvme_feature_support[NVME_FID_MAX] = {
+    [NVME_ARBITRATION]              = true,
+    [NVME_POWER_MANAGEMENT]         = true,
+    [NVME_TEMPERATURE_THRESHOLD]    = true,
+    [NVME_ERROR_RECOVERY]           = true,
+    [NVME_VOLATILE_WRITE_CACHE]     = true,
+    [NVME_NUMBER_OF_QUEUES]         = true,
+    [NVME_INTERRUPT_COALESCING]     = true,
+    [NVME_INTERRUPT_VECTOR_CONF]    = true,
+    [NVME_WRITE_ATOMICITY]          = true,
+    [NVME_ASYNCHRONOUS_EVENT_CONF]  = true,
+    [NVME_TIMESTAMP]                = true,
+};
+
+static const uint32_t nvme_feature_cap[NVME_FID_MAX] = {
+    [NVME_TEMPERATURE_THRESHOLD]    = NVME_FEAT_CAP_CHANGE,
+    [NVME_VOLATILE_WRITE_CACHE]     = NVME_FEAT_CAP_CHANGE,
+    [NVME_NUMBER_OF_QUEUES]         = NVME_FEAT_CAP_CHANGE,
+    [NVME_ASYNCHRONOUS_EVENT_CONF]  = NVME_FEAT_CAP_CHANGE,
+    [NVME_TIMESTAMP]                = NVME_FEAT_CAP_CHANGE,
+};
 typedef struct NvmeParams {
     char     *serial;
     char     *vhostfd;
@@ -230,6 +265,13 @@ typedef struct NvmeCtrl {
     NvmeFeatureVal  features;
 } NvmeCtrl;
 
+struct nvme_stats {
+    uint64_t units_read;
+    uint64_t units_written;
+    uint64_t read_commands;
+    uint64_t write_commands;
+};
+
 static inline NvmeNamespace *nvme_ns(NvmeCtrl *n, uint32_t nsid)
 {
     if (!nsid || nsid > n->num_namespaces) {
@@ -275,5 +317,32 @@ uint16_t nvme_bounce_mdata(NvmeCtrl *n, uint8_t *ptr, uint32_t len,
 void nvme_rw_complete_cb(void *opaque, int ret);
 uint16_t nvme_map_dptr(NvmeCtrl *n, NvmeSg *sg, size_t len,
                        NvmeCmd *cmd);
+uint16_t nvme_cid(NvmeRequest *req);
+uint16_t nvme_sqid(NvmeRequest *req);
+int nvme_addr_read(NvmeCtrl *n, hwaddr addr, void *buf, int size);
+int nvme_check_cqid(NvmeCtrl *n, uint16_t cqid);
+void nvme_inc_sq_head(NvmeSQueue *sq);
+uint8_t nvme_sq_empty(NvmeSQueue *sq);
+void nvme_req_clear(NvmeRequest *req);
+void nvme_post_cqes(void *opaque);
+void nvme_enqueue_req_completion(NvmeCQueue *cq, NvmeRequest *req);
+uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeRequest *req);
+uint16_t nvme_del_sq(NvmeCtrl *n, NvmeRequest *req);
+uint16_t nvme_get_log(NvmeCtrl *n, NvmeRequest *req);
+uint16_t nvme_del_cq(NvmeCtrl *n, NvmeRequest *req);
+uint16_t nvme_identify_ns_descr_list(NvmeCtrl *n, NvmeRequest *req);
+uint16_t nvme_identify(NvmeCtrl *n, NvmeRequest *req);
+uint16_t nvme_abort(NvmeCtrl *n, NvmeRequest *req);
+void nvme_set_timestamp(NvmeCtrl *n, uint64_t ts);
+uint16_t nvme_get_feature(NvmeCtrl *n, NvmeRequest *req);
+uint16_t nvme_set_feature(NvmeCtrl *n, NvmeRequest *req);
+uint16_t nvme_aer(NvmeCtrl *n, NvmeRequest *req);
+void nvme_ctrl_reset(NvmeCtrl *n);
+void nvme_process_db(NvmeCtrl *n, hwaddr addr, int val);
+void nvme_check_constraints(NvmeCtrl *n, Error **errp);
+void nvme_init_state(NvmeCtrl *n);
+void nvme_init_cmb(NvmeCtrl *n, PCIDevice *pci_dev);
+void nvme_init_pmr(NvmeCtrl *n, PCIDevice *pci_dev);
+void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev);
 
 #endif /* HW_NVME_H */
