@@ -715,9 +715,9 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
 static uint64_t nvme_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
     NvmeCtrl *n = (NvmeCtrl *)opaque;
-    uint64_t val = 0;
     const VhostOps *vhost_ops = n->dev.vhost_ops;
     struct nvmet_vhost_bar nvmet_bar;
+    int ret = 0;
 
     if (unlikely(addr & (sizeof(uint32_t) - 1))) {
         error_report("MMIO read not 32-bit aligned, offset=0x%"PRIx64"", addr);
@@ -731,9 +731,13 @@ static uint64_t nvme_mmio_read(void *opaque, hwaddr addr, unsigned size)
     nvmet_bar.type = VHOST_NVME_BAR_READ;
     nvmet_bar.offset = addr;
     nvmet_bar.size = size;
-    val = vhost_ops->vhost_nvme_bar(&n->dev, &nvmet_bar);
 
-    return val;
+    ret = vhost_ops->vhost_nvme_bar(&n->dev, &nvmet_bar);
+    if (ret) {
+        error_report("Failed to read bar at offset 0x%" PRIx64, addr);
+    }
+
+    return nvmet_bar.val;
 }
 
 static void nvme_mmio_write(void *opaque, hwaddr addr, uint64_t data,
