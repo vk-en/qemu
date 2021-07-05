@@ -699,6 +699,8 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
 {
     const VhostOps *vhost_ops = n->dev.vhost_ops;
     struct nvmet_vhost_bar nvmet_bar;
+    hwaddr len;
+    uint64_t expected_len;
     int ret;
 
     memset(&nvmet_bar, 0, sizeof(nvmet_bar));
@@ -706,6 +708,59 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
     nvmet_bar.offset = offset;
     nvmet_bar.size = size;
     nvmet_bar.val = data;
+    switch (offset) {
+    case 0x14:  /* CC */
+        break;
+    case 0x24:  /* AQA */
+        n->bar.aqa = data & 0xffffffff;
+        break;
+    case 0x28:  /* ASQ */
+        n->bar.asq = data;
+        trace_pci_nvme_mmio_asqaddr(data);
+        return;
+        break;
+    case 0x2c:  /* ASQ hi */
+        trace_pci_nvme_mmio_asqaddr_hi(data, n->bar.asq);
+
+        n->bar.asq |= data << 32;
+        nvmet_bar.offset = 0x28;
+        len = expected_len = (NVME_AQA_ASQS(n->bar.aqa) + 1) * sizeof(NvmeCmd);
+
+        nvmet_bar.val = (uint64_t) cpu_physical_memory_map(n->bar.asq, &len, true);
+        qemu_log("mapped 0x%" PRIx64 " bytes\n", len);
+        if (!nvmet_bar.val || len != expected_len) {
+            error_report("failed to map GPA, len=0x%" PRIx64 " ret=0x%" PRIx64 "\n", len, nvmet_bar.val);
+            return;
+        }
+
+        nvmet_bar.size = sizeof(n->bar.asq);
+        break;
+    case 0x30:  /* ACQ */
+        trace_pci_nvme_mmio_acqaddr(data);
+        n->bar.acq = data;
+        return;
+        break;
+    case 0x34:  /* ACQ hi */
+        trace_pci_nvme_mmio_acqaddr_hi(data, n->bar.acq);
+
+        n->bar.acq |= data << 32;
+        nvmet_bar.offset = 0x30;
+
+        len = expected_len = (NVME_AQA_ACQS(n->bar.aqa) + 1) * sizeof(NvmeCmd);
+
+        nvmet_bar.val = (uint64_t) cpu_physical_memory_map(n->bar.acq, &len, true);
+        if (!nvmet_bar.val || len != expected_len) {
+            error_report("failed to map GPA, len=0x%" PRIx64 " ret=0x%" PRIx64 "\n", len, nvmet_bar.val);
+            return;
+        }
+        nvmet_bar.size = sizeof(n->bar.acq);
+
+        break;
+    default:
+        ;
+    }
+
+
     ret = vhost_ops->vhost_nvme_bar(&n->dev, &nvmet_bar);
     if (ret < 0) {
         error_report("nvme_write_bar error = %d", ret);
