@@ -97,8 +97,11 @@ static int vhost_kernel_nvme_set_eventfd(struct vhost_dev *dev,
     return vhost_kernel_call(dev, VHOST_NVME_SET_EVENTFD, eventfd);
 }
 
+#include "qemu/log.h"
 static int vhost_kernel_nvme_bar(struct vhost_dev *dev, struct nvmet_vhost_bar *bar)
 {
+    qemu_log("forwarding bar write at offset=0x%" PRIx64 " val=0x%" PRIx64 " size=%d\n",
+             bar->offset, bar->val, bar->size);
     return vhost_kernel_call(dev, VHOST_NVME_BAR, bar);
 }
 
