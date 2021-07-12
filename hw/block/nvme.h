@@ -344,5 +344,6 @@ void nvme_init_state(NvmeCtrl *n);
 void nvme_init_cmb(NvmeCtrl *n, PCIDevice *pci_dev);
 void nvme_init_pmr(NvmeCtrl *n, PCIDevice *pci_dev);
 void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev);
+int nvme_start_ctrl(NvmeCtrl *n);
 
 #endif /* HW_NVME_H */
