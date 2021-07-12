@@ -854,7 +854,7 @@ static void nvme_exit(PCIDevice *pci_dev)
     NvmeCtrl *n = NVME_VHOST(pci_dev);
 
     vhost_nvme_clear_endpoint(n, 1);
-    nvme_clear_ctrl(n);
+    nvme_ctrl_reset(n);
     g_free(n->cq);
     g_free(n->sq);
     g_free(n->aer_reqs);
