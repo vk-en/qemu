@@ -22,28 +22,6 @@
             " in %s: " fmt "\n", __func__, ## __VA_ARGS__); \
     } while (0)
 
-
-static const bool nvme_feature_support[NVME_FID_MAX] = {
-    [NVME_ARBITRATION]              = true,
-    [NVME_POWER_MANAGEMENT]         = true,
-    [NVME_TEMPERATURE_THRESHOLD]    = true,
-    [NVME_ERROR_RECOVERY]           = true,
-    [NVME_VOLATILE_WRITE_CACHE]     = true,
-    [NVME_NUMBER_OF_QUEUES]         = true,
-    [NVME_INTERRUPT_COALESCING]     = true,
-    [NVME_INTERRUPT_VECTOR_CONF]    = true,
-    [NVME_WRITE_ATOMICITY]          = true,
-    [NVME_ASYNCHRONOUS_EVENT_CONF]  = true,
-    [NVME_TIMESTAMP]                = true,
-};
-
-static const uint32_t nvme_feature_cap[NVME_FID_MAX] = {
-    [NVME_TEMPERATURE_THRESHOLD]    = NVME_FEAT_CAP_CHANGE,
-    [NVME_VOLATILE_WRITE_CACHE]     = NVME_FEAT_CAP_CHANGE,
-    [NVME_NUMBER_OF_QUEUES]         = NVME_FEAT_CAP_CHANGE,
-    [NVME_ASYNCHRONOUS_EVENT_CONF]  = NVME_FEAT_CAP_CHANGE,
-    [NVME_TIMESTAMP]                = NVME_FEAT_CAP_CHANGE,
-};
 typedef struct NvmeParams {
     char     *serial;
     char     *vhostfd;
@@ -317,7 +295,6 @@ uint16_t nvme_bounce_mdata(NvmeCtrl *n, uint8_t *ptr, uint32_t len,
 void nvme_rw_complete_cb(void *opaque, int ret);
 uint16_t nvme_map_dptr(NvmeCtrl *n, NvmeSg *sg, size_t len,
                        NvmeCmd *cmd);
-uint16_t nvme_cid(NvmeRequest *req);
 uint16_t nvme_sqid(NvmeRequest *req);
 int nvme_addr_read(NvmeCtrl *n, hwaddr addr, void *buf, int size);
 int nvme_check_cqid(NvmeCtrl *n, uint16_t cqid);
@@ -330,7 +307,6 @@ uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeRequest *req);
 uint16_t nvme_del_sq(NvmeCtrl *n, NvmeRequest *req);
 uint16_t nvme_get_log(NvmeCtrl *n, NvmeRequest *req);
 uint16_t nvme_del_cq(NvmeCtrl *n, NvmeRequest *req);
-uint16_t nvme_identify_ns_descr_list(NvmeCtrl *n, NvmeRequest *req);
 uint16_t nvme_identify(NvmeCtrl *n, NvmeRequest *req);
 uint16_t nvme_abort(NvmeCtrl *n, NvmeRequest *req);
 void nvme_set_timestamp(NvmeCtrl *n, uint64_t ts);
@@ -345,5 +321,6 @@ void nvme_init_cmb(NvmeCtrl *n, PCIDevice *pci_dev);
 void nvme_init_pmr(NvmeCtrl *n, PCIDevice *pci_dev);
 void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev);
 int nvme_start_ctrl(NvmeCtrl *n);
+void nvme_ctrl_shutdown(NvmeCtrl *n);
 
 #endif /* HW_NVME_H */

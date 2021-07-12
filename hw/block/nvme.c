@@ -240,7 +240,7 @@ static const uint32_t nvme_cse_iocs_zoned[256] = {
 
 static void nvme_process_sq(void *opaque);
 
-static uint16_t nvme_sqid(NvmeRequest *req)
+uint16_t nvme_sqid(NvmeRequest *req)
 {
     return le16_to_cpu(req->sq->sqid);
 }
@@ -4314,6 +4314,9 @@ static uint16_t nvme_identify_ns_csi(NvmeCtrl *n, NvmeRequest *req,
 static uint16_t nvme_identify_nslist(NvmeCtrl *n, NvmeRequest *req,
         bool active)
 {
+    NvmeNamespace *ns;
+    NvmeIdentify *c = (NvmeIdentify *)&req->cmd;
+    uint32_t min_nsid = le32_to_cpu(c->nsid);
     uint8_t list[NVME_IDENTIFY_DATA_SIZE] = {};
     static const int data_len = sizeof(list);
     uint32_t *list_ptr = (uint32_t *)list;
@@ -5235,7 +5238,7 @@ void nvme_ctrl_reset(NvmeCtrl *n)
     n->bar.cc = 0;
 }
 
-static void nvme_ctrl_shutdown(NvmeCtrl *n)
+void nvme_ctrl_shutdown(NvmeCtrl *n)
 {
     NvmeNamespace *ns;
     int i;

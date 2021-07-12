@@ -629,8 +629,18 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
             }
         } else if (!NVME_CC_EN(data) && NVME_CC_EN(n->bar.cc)) {
             trace_pci_nvme_mmio_stopped();
-            nvme_clear_ctrl(n);
+            nvme_ctrl_reset(n);
             n->bar.csts &= ~NVME_CSTS_READY;
+        }
+        if (NVME_CC_SHN(data) && !(NVME_CC_SHN(n->bar.cc))) {
+            trace_pci_nvme_mmio_shutdown_set();
+            nvme_ctrl_shutdown(n);
+            n->bar.cc = data;
+            n->bar.csts |= NVME_CSTS_SHST_COMPLETE;
+        } else if (!NVME_CC_SHN(data) && NVME_CC_SHN(n->bar.cc)) {
+            trace_pci_nvme_mmio_shutdown_cleared();
+            n->bar.csts &= ~NVME_CSTS_SHST_COMPLETE;
+            n->bar.cc = data;
         }
         break;
     case 0x24:  /* AQA */
@@ -722,7 +732,7 @@ static void nvme_mmio_write(void *opaque, hwaddr addr, uint64_t data,
 {
     NvmeCtrl *n = (NvmeCtrl *)opaque;
 
-    trace_pci_nvme_mmio_write(addr, data);
+    trace_pci_nvme_mmio_write(addr, data, size);
 
     nvme_write_bar(n, addr, data, size);
     if (addr > sizeof(n->bar)) {
@@ -768,7 +778,9 @@ static void nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
 
     if (n->params.cmb_size_mb) {
         nvme_init_cmb(n, pci_dev);
-    } else if (n->pmrdev) {
+    }
+
+    if (n->pmr.dev) {
         nvme_init_pmr(n, pci_dev);
     }
 }
@@ -846,11 +858,11 @@ static void nvme_exit(PCIDevice *pci_dev)
     g_free(n->aer_reqs);
 
     if (n->params.cmb_size_mb) {
-        g_free(n->cmbuf);
+        g_free(n->cmb.buf);
     }
 
-    if (n->pmrdev) {
-        host_memory_backend_set_mapped(n->pmrdev, false);
+    if (n->pmr.dev) {
+        host_memory_backend_set_mapped(n->pmr.dev, false);
     }
     msix_uninit_exclusive_bar(pci_dev);
 }
@@ -858,7 +870,7 @@ static void nvme_exit(PCIDevice *pci_dev)
 static Property nvme_props[] = {
     DEFINE_PROP_STRING("vhostfd", NvmeCtrl, params.vhostfd),
     DEFINE_BLOCK_PROPERTIES(NvmeCtrl, namespace.blkconf),
-    DEFINE_PROP_LINK("pmrdev", NvmeCtrl, pmrdev, TYPE_MEMORY_BACKEND,
+    DEFINE_PROP_LINK("pmrdev", NvmeCtrl, pmr.dev, TYPE_MEMORY_BACKEND,
                      HostMemoryBackend *),
     DEFINE_PROP_STRING("serial", NvmeCtrl, params.serial),
     DEFINE_PROP_UINT32("cmb_size_mb", NvmeCtrl, params.cmb_size_mb, 0),
